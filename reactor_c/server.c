@@ -9,6 +9,7 @@
 #include<signal.h>
 #include<dirent.h>
 #include<sys/types.h>
+#include<ctype.h>
 int initListenFd(int port) {
     int lfd=socket(AF_INET,SOCK_STREAM,0);
     if(lfd==-1) {
@@ -121,12 +122,14 @@ int parseRequestLine(const char* line,int cfd) {
         return -1;
     }
     char* file=NULL;
+    decodeMsg(path,path);
     if(strcmp(path,"/")==0) {
         file="./";
     }
     else {
         file=path+1;
     }
+    printf("file:%s\n",file);
     struct stat st;
     int ret=stat(file,&st);
     //no exit
@@ -261,4 +264,27 @@ int sendDir(const char* dirName,int cfd)
     }
     sprintf(buf,"</table></body></html>");
     send(cfd,buf,strlen(buf),0);
+}
+
+int hexToDec(char c)
+{
+    if(c>='0'&&c<='9')return c-'0';
+    if(c>='a'&&c<='z')return c-'a'+10;
+    if(c>='A'&&c<='Z')return c-'A'+10;
+    return 0;
+}
+
+void decodeMsg(char *to, char *from)
+{
+    for(;*from!='\0';to++,from++)
+    {
+        if(from[0]=='%'&&isxdigit(from[1])&&isxdigit(from[2]))
+        {
+            *to=hexToDec(from[1])*16+hexToDec(from[2]);
+            from+=2;
+        }else{
+            *to=*from;
+        }
+    }
+    *to='\0';
 }

@@ -127,7 +127,6 @@ int parseRequestLine(const char* line,int cfd) {
     else {
         file=path+1;
     }
-    if(file[strlen(file)-1]!='/')file[strlen(file)]='/';
     struct stat st;
     int ret=stat(file,&st);
     //no exit
@@ -137,6 +136,7 @@ int parseRequestLine(const char* line,int cfd) {
     }
     //is directory
     if(S_ISDIR(st.st_mode)) {
+        if(file[strlen(file)-1]!='/')file[strlen(file)]='/';
         sendHeadMsg(cfd,200,"OK",getFileType(".html"),-1);
         sendDir(file,cfd);
 
@@ -252,8 +252,8 @@ int sendDir(const char* dirName,int cfd)
         else
         {
             sprintf(buf,
-            "<tr><td><a href=\"%s\">%s</a></td><td>%ld</td></tr>",
-            namelist[i]->d_name,namelist[i]->d_name,st.st_size);
+            "<tr><td><a href=\"/%s%s\">%s</a></td><td>%ld</td></tr>",
+            dirName,namelist[i]->d_name,namelist[i]->d_name,st.st_size);
         }
         int ret=send(cfd,buf,strlen(buf),0);
         printf("ret=%d,%s\n",ret,buf);

@@ -20,8 +20,8 @@
 
 int initListenFd(int port);
 int epollRun(int lfd);
-int acceptClient(int lfd,int epfd);
-int recvHttpRequest(int cfd,int epfd);
+void* acceptClient(void* info);
+void* recvHttpRequest(void* info);
 int parseRequestLine(const char* line,int cfd);
 const char* getFileType(const char* name);
 int sendFile(const char* fileName,int cfd);

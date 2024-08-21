@@ -10,6 +10,14 @@
 #include<dirent.h>
 #include<sys/types.h>
 #include<ctype.h>
+#include<stdlib.h>
+#include<pthread.h>
+struct FdInfo
+{
+    int fd;
+    int epfd;
+    pthread_t tid;
+};
 int initListenFd(int port) {
     int lfd=socket(AF_INET,SOCK_STREAM,0);
     if(lfd==-1) {
@@ -57,21 +65,27 @@ int epollRun(int lfd) {
     while(1) {
         int nums=epoll_wait(epfd,evs,sizeof(evs)/sizeof(struct epoll_event),-1);
         for(int i=0;i<nums;i++) {
+            struct FdInfo* info=(struct FdInfo*)malloc(sizeof(struct FdInfo));
+                info->fd=evs[i].data.fd;
+                info->epfd=epfd;
             if(evs[i].data.fd==lfd) {
-                acceptClient(lfd,epfd);
+                //acceptClient(lfd,epfd);
+                pthread_create(&info->tid,NULL,acceptClient,info);
             }else {
-                recvHttpRequest(evs[i].data.fd,epfd);
+                //recvHttpRequest(evs[i].data.fd,epfd);
+                pthread_create(&info->tid,NULL,recvHttpRequest,info);
             }
         }
     }
     return 0;
 }
-int acceptClient(int lfd,int epfd) {
-
+void* acceptClient(void* arg) {
+    struct FdInfo* info=(struct FdInfo*)arg;
+    int lfd=info->fd,epfd=info->epfd;
     int cfd=accept(lfd,NULL,NULL);
     if(cfd==-1) {
         perror("accept error\n");
-        return -1;
+        return NULL;
     }
     int flag=fcntl(cfd,F_GETFL);
     flag=flag|O_NONBLOCK;
@@ -82,12 +96,14 @@ int acceptClient(int lfd,int epfd) {
     int ret=epoll_ctl(epfd,EPOLL_CTL_ADD,cfd,&ev);
     if(ret==-1) {
         perror("epoll_ctl error\n");
-        return -1;
     }
-    return 0;
+    free(arg);
+    return NULL;
 }
 
-int recvHttpRequest(int cfd,int epfd) {
+void* recvHttpRequest(void* arg) {
+    struct FdInfo* info=(struct FdInfo*)arg;
+    int cfd=info->fd,epfd=info->epfd;
     int len=0,total=0;
     char tmp[1024]={0};
     char buff[4096*3]={0};
@@ -110,7 +126,8 @@ int recvHttpRequest(int cfd,int epfd) {
     }
     epoll_ctl(epfd,EPOLL_CTL_DEL,cfd,NULL);
     close(cfd);
-    return 0;
+    free(arg);
+    return NULL;
 }
 
 int parseRequestLine(const char* line,int cfd) {
@@ -204,14 +221,17 @@ int sendFile(const char* fileName,int cfd) {
     off_t offset=0;
     while(offset<size) {
         int ret=sendfile(cfd,f_fd,&offset,size-offset);
-        // if(ret==-1&& errno == EAGAIN) {
-        //     perror("senfile error\n");
-        // }
+        if(ret==-1&& errno == EAGAIN) {
+            //perror("senfile error\n");
+        }else if(ret>0)
+        {
+            printf("ret=%d,errno=%d",ret,errno);
+        }
         if(errno==EPIPE)
         {
             break;
         }
-         printf("ret:%d\nerrno:%d\n",ret,errno);
+         //printf("ret:%d\nerrno:%d\n",ret,errno);
         // printf("sendfile:%d,offset=%ld,size=%d\n",ret,offset,size);
     }
     close(f_fd);

@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/reactor_c.dir/main.c.o CMakeFiles/reactor_c.dir/server.c.o -o reactor_c  -lpthread 

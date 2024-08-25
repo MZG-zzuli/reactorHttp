@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(simpleHttp main.c
         server.h
         server.c)
-target_link_libraries(reactor_c pthread)
+target_link_libraries(simpleHttp pthread)
